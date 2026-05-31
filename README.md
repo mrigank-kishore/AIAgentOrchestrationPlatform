@@ -9,9 +9,8 @@
 - Agent-to-agent execution works through shared workflow state, where each agent output is appended and passed to the next node.
 - At least two workflow templates are seeded: Customer Support Triage and Research and Summary.
 - External messaging channel is implemented with Telegram long polling.
-- Real demo tools are available: `search_kb` and `create_ticket`.
 - Live monitor shows workflow runs, user prompts, agent outputs, token estimates, cost estimates, and Langfuse links.
-- Langfuse tracing records workflow-level traces and per-agent observations.
+- Langfuse tracing records workflow-level traces and per-agent observations, tested with local, container based Langfuse.
 - Local model execution is supported through Ollama, with optional Gemini, OpenAI, Anthropic, and mock fallback paths.
 - Single-command local run is supported with `.\proto.ps1`.
 - Single-container deployment path is supported with the included Dockerfile.
