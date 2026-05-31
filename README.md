@@ -1,5 +1,7 @@
 # AIAgentOrchestrationPlatform
 
+![AIAgentOrchestrationPlatform demo](demo.gif)
+
 ## Tech Stack
 
 | Tech stack | What it does | Why | Tradeoff |
