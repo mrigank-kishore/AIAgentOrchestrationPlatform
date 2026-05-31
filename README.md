@@ -1,5 +1,22 @@
 # AIAgentOrchestrationPlatform
 
+## Table of Contents
+
+- [Working Requirement Coverage](#working-requirement-coverage)
+- [Short Demo Video](#short-demo)
+- [Tech Stack](#tech-stack)
+- [Architecture Flow](#architecture-flow)
+- [Workflow JSON Flow](#workflow-json-flow)
+  - [1. Create Agent](#1-create-agent)
+  - [2. Save Workflow](#2-save-workflow)
+  - [3. Execute Workflow](#3-execute-workflow)
+  - [4. How the Backend Builds LangGraph Dynamically](#4-how-the-backend-builds-langgraph-dynamically)
+  - [5. Runtime Execution](#5-runtime-execution)
+  - [6. Backend Response](#6-backend-response)
+- [Run the App With One Command](#run-the-app-with-one-command)
+  - [Configure `.env`](#configure-env)
+  - [Docker](#docker)
+
 ## Working Requirement Coverage
 
 - Agent CRUD is implemented through the web UI and REST API for name, role, system prompt, model, tools, channels, schedule, memory, skills, interaction rules, guardrails, and limits.
