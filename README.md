@@ -1,6 +1,6 @@
 # AIAgentOrchestrationPlatform
 
-## Mini-Demo
+## Short-Demo
 ![AIAgentOrchestrationPlatform demo](demo.gif)
 
 ## Tech Stack
