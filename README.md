@@ -1,6 +1,6 @@
 # AIAgentOrchestrationPlatform
 
-## Requirement Coverage
+## Working Requirement Coverage
 
 - Agent CRUD is implemented through the web UI and REST API for name, role, system prompt, model, tools, channels, schedule, memory, skills, interaction rules, guardrails, and limits.
 - Visual workflow builder is implemented with React Flow for connecting agents into LangGraph workflows.
