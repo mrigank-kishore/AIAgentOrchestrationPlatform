@@ -1,5 +1,22 @@
 # AIAgentOrchestrationPlatform
 
+## Requirement Coverage
+
+- Agent CRUD is implemented through the web UI and REST API for name, role, system prompt, model, tools, channels, schedule, memory, skills, interaction rules, guardrails, and limits.
+- Visual workflow builder is implemented with React Flow for connecting agents into LangGraph workflows.
+- Workflow definitions are persisted in SQLite and dynamically executed by LangGraph from saved JSON.
+- Agent configuration, workflow definitions, and message history are persisted with SQLModel and SQLite.
+- Agent-to-agent execution works through shared workflow state, where each agent output is appended and passed to the next node.
+- At least two workflow templates are seeded: Customer Support Triage and Research and Summary.
+- External messaging channel is implemented with Telegram long polling.
+- Real demo tools are available: `search_kb` and `create_ticket`.
+- Live monitor shows workflow runs, user prompts, agent outputs, token estimates, cost estimates, and Langfuse links.
+- Langfuse tracing records workflow-level traces and per-agent observations.
+- Local model execution is supported through Ollama, with optional Gemini, OpenAI, Anthropic, and mock fallback paths.
+- Single-command local run is supported with `.\proto.ps1`.
+- Single-container deployment path is supported with the included Dockerfile.
+- Backend tests cover agent APIs, workflow execution, LangGraph building, tools, Telegram helpers, integrations, and WebSocket monitoring.
+
 ## Short-Demo
 ![AIAgentOrchestrationPlatform demo](demo.gif)
 
