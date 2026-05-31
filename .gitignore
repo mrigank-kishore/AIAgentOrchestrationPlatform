@@ -1,0 +1,40 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.venv/
+venv/
+.venv/
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+.dev-server-pids.json
+
+# Logs
+*.log
+*.out.log
+*.err.log
+*.out
+*.err
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
