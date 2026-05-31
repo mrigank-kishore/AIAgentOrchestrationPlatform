@@ -1,19 +1,24 @@
-# Stage 1: Build frontend
+# Stage 1: Build frontend static assets
 FROM node:20-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# Stage 2: Final image
+# Stage 2: Run FastAPI and serve the exported frontend from the same container
 FROM python:3.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-COPY backend/requirements.txt .
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/ .
+COPY backend/app ./app
+COPY backend/messaging ./messaging
 COPY --from=frontend-build /frontend/out ./static
 
 EXPOSE 8000

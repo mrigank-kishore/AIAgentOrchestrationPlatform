@@ -30,9 +30,57 @@ For the required AI framework choice, this project uses **LangGraph**. The requi
 
 ## Workflow JSON Flow
 
-The frontend creates workflows visually with React Flow, then sends the workflow as JSON to the backend. The backend stores this JSON definition in SQLite and uses it later to dynamically build and execute a LangGraph workflow.
+The frontend first creates reusable agents, then creates workflows visually with React Flow. The workflow JSON references saved agents by `agent_id`. The backend stores the agent configuration and workflow definition in SQLite, then uses the saved definition to dynamically build and execute a LangGraph workflow.
 
-### 1. Save Workflow
+### 1. Create Agent
+
+`POST /api/agents/`
+
+```json
+{
+  "name": "Research Agent",
+  "role": "Collects useful context and source material",
+  "system_prompt": "You are the research agent. Gather facts, risks, and implementation notes. Do not write the final answer.",
+  "model": "ollama:llama3.2:3b",
+  "tools": ["search_kb"],
+  "channels": ["api", "telegram"],
+  "skills": ["research", "context gathering"],
+  "interaction_rules": "Return structured notes only. Hand off to the summary agent for final wording.",
+  "guardrails": "Do not invent facts. Say when information is uncertain.",
+  "limits": {
+    "max_turns": 4,
+    "max_tokens": 800
+  },
+  "memory_type": "buffer",
+  "schedule": null
+}
+```
+
+Example second agent:
+
+```json
+{
+  "name": "Summary Agent",
+  "role": "Turns research notes into a final answer",
+  "system_prompt": "You are the summary agent. Use the previous agent output and produce a concise final response.",
+  "model": "ollama:llama3.2:3b",
+  "tools": [],
+  "channels": ["api", "telegram"],
+  "skills": ["summarization", "executive communication"],
+  "interaction_rules": "Do not redo the research. Summarize the previous agent output.",
+  "guardrails": "Keep the answer grounded in the prior notes.",
+  "limits": {
+    "max_turns": 4,
+    "max_tokens": 800
+  },
+  "memory_type": "buffer",
+  "schedule": null
+}
+```
+
+Each agent is saved in the `agent` table. The response contains the generated `id`, which is used as `agent_id` in the workflow JSON.
+
+### 2. Save Workflow
 
 `POST /api/workflows/`
 
@@ -78,7 +126,7 @@ The frontend creates workflows visually with React Flow, then sends the workflow
 
 The workflow is saved in the `workflowdefinition` table. The `definition` field stores the dynamic graph structure: triggers, entry node, end nodes, agent nodes, and edges.
 
-### 2. Execute Workflow
+### 3. Execute Workflow
 
 `POST /api/workflows/{workflow_id}/execute`
 
@@ -88,13 +136,66 @@ The workflow is saved in the `workflowdefinition` table. The `definition` field 
 }
 ```
 
-### 3. Runtime Execution
+### 4. How the Backend Builds LangGraph Dynamically
+
+At execution time, the backend does not use a hard-coded workflow. It reads the saved `definition` JSON and converts it into a LangGraph `StateGraph`.
+
+The dynamic mapping is:
+
+| Workflow JSON field | Backend behavior |
+| --- | --- |
+| `entry_node` | Sets the LangGraph starting node with `graph.set_entry_point(entry_node)`. |
+| `nodes[].id` | Creates a LangGraph node with that node id. |
+| `nodes[].agent_id` | Binds the graph node to the saved agent configuration in SQLite. |
+| `edges[].source` and `edges[].target` | Adds graph transitions between agent nodes. |
+| `edges[].condition` and `condition_map` | Adds conditional routing when an edge needs runtime decision logic. |
+| `end_nodes[]` | Marks finish points with `graph.set_finish_point(node_id)`. |
+
+Conceptually, this workflow definition:
+
+```json
+{
+  "entry_node": "research",
+  "end_nodes": ["summary"],
+  "nodes": [
+    {
+      "id": "research",
+      "agent_id": "RESEARCH_AGENT_UUID"
+    },
+    {
+      "id": "summary",
+      "agent_id": "SUMMARY_AGENT_UUID"
+    }
+  ],
+  "edges": [
+    {
+      "source": "research",
+      "target": "summary",
+      "condition": null,
+      "condition_map": null
+    }
+  ]
+}
+```
+
+becomes this runtime graph:
+
+```text
+START
+  -> research node
+  -> summary node
+  -> END
+```
+
+Each graph node is an agent runner. When LangGraph invokes a node, the backend loads the matching agent by `agent_id`, builds that agent's prompt, calls configured tools, calls the selected LLM through LangChain-compatible message objects, appends the agent output to workflow state, and passes that updated state to the next node.
+
+### 5. Runtime Execution
 
 When the workflow runs, the backend performs these steps:
 
 - Loads the workflow definition from SQLite.
 - Loads each referenced agent configuration from SQLite.
-- Builds a LangGraph dynamically from `entry_node`, `nodes`, `edges`, and `end_nodes`.
+- Builds a LangGraph dynamically from `entry_node`, `nodes`, `edges`, `condition_map`, and `end_nodes`.
 - Starts with the user message as the first message in workflow state.
 - Runs the first agent node.
 - Passes the updated message state to the next agent node.
@@ -103,7 +204,7 @@ When the workflow runs, the backend performs these steps:
 - Sends workflow and per-agent telemetry to Langfuse.
 - Returns the final agent output to the frontend or Telegram.
 
-### 4. Backend Response
+### 6. Backend Response
 
 ```json
 {
@@ -117,13 +218,116 @@ When the workflow runs, the backend performs these steps:
 In short, the JSON flow is:
 
 ```text
+Frontend create agent form
+  -> agent JSON
+  -> FastAPI
+  -> SQLite agent table
 Frontend visual workflow
   -> workflow JSON
   -> FastAPI
   -> SQLite workflowdefinition table
+Workflow execution request
+  -> load workflow + agents from SQLite
   -> dynamic LangGraph build
   -> agent execution
   -> message history in SQLite
   -> telemetry in Langfuse
   -> final response
+```
+
+## Run the App With One Command
+
+The prototype is designed to run locally with one PowerShell command:
+
+```powershell
+.\proto.ps1
+```
+
+This command creates the backend virtual environment if needed, installs backend dependencies, installs frontend dependencies, builds the Next.js static frontend, copies it into `backend/static`, and starts FastAPI at:
+
+```text
+http://127.0.0.1:8000
+```
+
+### Configure `.env`
+
+Before running the app for the first time, copy the example env file:
+
+```powershell
+Copy-Item .env.example backend\.env
+```
+
+Then update `backend\.env`.
+
+Minimum local configuration:
+
+```env
+TELEGRAM_POLLING_ENABLED=false
+OLLAMA_BASE_URL=http://localhost:11434
+DATABASE_URL=sqlite+aiosqlite:///./app.db
+LOG_LEVEL=INFO
+```
+
+For Gemini:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+For OpenAI:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+```
+
+For Anthropic:
+
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
+For Telegram:
+
+```env
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_POLLING_ENABLED=true
+```
+
+For Langfuse:
+
+```env
+LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
+LANGFUSE_SECRET_KEY=your_langfuse_secret_key
+LANGFUSE_HOST=http://localhost:3003
+```
+
+Useful `proto.ps1` commands:
+
+```powershell
+.\proto.ps1                 # build and start the app
+.\proto.ps1 -Action build   # install dependencies and build only
+.\proto.ps1 -Action status  # show whether the app is running
+.\proto.ps1 -Action stop    # stop the running app
+```
+
+### Docker
+
+The Dockerfile also runs the frontend and backend as one app in one container.
+
+Build:
+
+```powershell
+docker build -t ai-agent-orchestration-platform .
+```
+
+Run:
+
+```powershell
+docker run --rm -p 8000:8000 --env-file backend\.env -e OLLAMA_BASE_URL=http://host.docker.internal:11434 ai-agent-orchestration-platform
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000
 ```
